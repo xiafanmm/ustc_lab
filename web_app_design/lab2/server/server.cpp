@@ -10,6 +10,7 @@
 #include <mutex>
 #include <cstring>  // memset, strncpy
 #include <cstdint>  // intptr_t
+#include <cstdlib>  // std::exit
 
 #include "common.h"
 
@@ -42,6 +43,43 @@ void remove_client_by_fd(int fd) {
             break;
         }
     }
+}
+
+// ====================== 控制台线程：系统公告 / 关闭服务器 ======================
+
+void* console_thread(void* arg) {
+    (void)arg;
+    std::string line;
+    while (std::getline(std::cin, line)) {
+        if (line.empty()) continue;
+
+        if (line == "/quit") {
+            // 先广播一条服务器关闭通知
+            ChatMessage sys{};
+            sys.type = MSG_SYSTEM;
+            std::strncpy(sys.from, "SERVER", NAME_LEN - 1);
+            std::snprintf(sys.text, MSG_LEN,
+                          "Server is shutting down.");
+            broadcast_message(sys);
+
+            std::cout << "[SYSTEM] Server is shutting down..." << std::endl;
+
+            // 直接结束整个进程（所有线程一起退出）
+            std::exit(0);
+        }
+
+        // 普通系统公告
+        ChatMessage sys{};
+        sys.type = MSG_SYSTEM;
+        std::strncpy(sys.from, "SERVER", NAME_LEN - 1);
+        std::strncpy(sys.text, line.c_str(), MSG_LEN - 1);
+
+        broadcast_message(sys);
+        std::cout << "[SYSTEM] broadcast: " << line << std::endl;
+    }
+
+    // 如果 stdin EOF（比如输入被关掉），就直接让线程结束
+    return nullptr;
 }
 
 // ====================== 客户端处理线程 ======================
@@ -168,7 +206,7 @@ int main(int argc, char* argv[]) {
 
     sockaddr_in addr{};
     addr.sin_family      = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;       // 监听所有 IP，包括 47.117.184.121
+    addr.sin_addr.s_addr = INADDR_ANY;       // 监听所有 IP
     addr.sin_port        = htons(port);
 
     if (bind(listen_fd, (sockaddr*)&addr, sizeof(addr)) < 0) {
@@ -184,8 +222,14 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << "Server listening on port " << port
-              << " (Ctrl+C to stop)" << std::endl;
+              << " (Ctrl+C or /quit to stop)" << std::endl;
 
+    // 启动控制台线程：负责发送系统公告 & /quit 关闭服务器
+    pthread_t console_tid;
+    pthread_create(&console_tid, nullptr, console_thread, nullptr);
+    pthread_detach(console_tid);  // 不 join，进程结束时一起回收
+
+    // 主线程：只负责接收连接
     while (true) {
         sockaddr_in cli_addr{};
         socklen_t   cli_len = sizeof(cli_addr);
