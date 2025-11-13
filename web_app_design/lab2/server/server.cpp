@@ -49,8 +49,12 @@ void remove_client_by_fd(int fd) {
 
 void* console_thread(void* arg) {
     (void)arg;
+    std::cout << "[DEBUG] console_thread started, waiting for input..." << std::endl;
+
     std::string line;
     while (std::getline(std::cin, line)) {
+        std::cout << "[DEBUG] console input: \"" << line << "\"" << std::endl;
+
         if (line.empty()) continue;
 
         if (line == "/quit") {
@@ -78,7 +82,7 @@ void* console_thread(void* arg) {
         std::cout << "[SYSTEM] broadcast: " << line << std::endl;
     }
 
-    // 如果 stdin EOF（比如输入被关掉），就直接让线程结束
+    std::cout << "[DEBUG] console_thread: stdin EOF, thread exit" << std::endl;
     return nullptr;
 }
 
