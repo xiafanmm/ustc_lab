@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <arpa/inet.h>
+#include <cstdlib> // [新增] 用于 atoi
 #include "../common/Protocol.h"
 
 struct ClientContext {
@@ -15,14 +16,15 @@ struct ClientContext {
     std::string name;
 };
 
+// 全局状态
 std::vector<ClientContext> clients;
 std::mutex clientsMutex;
 
-// [新增] 文件传输路由表: SenderFD -> ReceiverFD
-// ReceiverFD = -1 表示群发
+// 文件传输路由表: SenderFD -> ReceiverFD (-1代表群发)
 std::map<int, int> fileTransferRoutes;
 std::mutex fileMutex;
 
+// 辅助：读取固定长度
 bool recvFixedLen(int sockfd, char* buf, int len) {
     int total = 0;
     while (total < len) {
@@ -72,7 +74,7 @@ void broadcastUserList() {
 }
 
 void handleClient(int clientFd) {
-    char buffer[1024 * 10]; // 10KB 缓冲区
+    char buffer[1024 * 10]; // 10KB Buffer
     std::string clientName = "Unknown";
 
     while (true) {
@@ -123,21 +125,21 @@ void handleClient(int clientFd) {
             }
         }
         else if (header.type == MSG_FILE_INFO) {
-            // 格式: "TargetName|FileName|Size"
+            // 格式: TargetName|FileName|Size
             std::string body(buffer, header.bodyLen);
             size_t firstPipe = body.find('|');
             if (firstPipe != std::string::npos) {
                 std::string targetName = body.substr(0, firstPipe);
-                std::string restInfo = body.substr(firstPipe + 1); // FileName|Size
+                std::string restInfo = body.substr(firstPipe + 1);
 
-                int targetFd = -1; // -1代表群发
+                int targetFd = -1; // -1=群发
                 if (!targetName.empty()) {
                     std::lock_guard<std::mutex> lock(clientsMutex);
                     for (auto& cli : clients) {
                         if (cli.name == targetName) { targetFd = cli.socketFd; break; }
                     }
                     if (targetFd == -1) {
-                        sendPacket(clientFd, MSG_CHAT_TEXT, "[系统]: 目标不在线，文件发送取消");
+                        sendPacket(clientFd, MSG_CHAT_TEXT, "[系统]: 目标不在线，文件取消");
                         continue;
                     }
                 }
@@ -148,22 +150,18 @@ void handleClient(int clientFd) {
                     fileTransferRoutes[clientFd] = targetFd;
                 }
 
-                // 转发 INFO (剥离TargetName，接收方不需要知道)
                 MsgHeader fwdHeader = header;
                 fwdHeader.bodyLen = restInfo.size();
                 
                 if (targetFd == -1) {
-                    // 群发
                     broadcastPacket(MSG_FILE_INFO, restInfo, clientFd);
                 } else {
-                    // 私发
                     send(targetFd, (char*)&fwdHeader, sizeof(fwdHeader), 0);
                     send(targetFd, restInfo.c_str(), restInfo.size(), 0);
                 }
             }
         }
         else if (header.type == MSG_FILE_DATA) {
-            // 查表转发
             int targetFd = -2;
             {
                 std::lock_guard<std::mutex> lock(fileMutex);
@@ -214,21 +212,41 @@ void adminConsole() {
     }
 }
 
-int main() {
+// [修改] 支持命令行参数指定端口
+int main(int argc, char* argv[]) {
+    int port = 8888; // 默认端口
+    if (argc > 1) {
+        port = std::atoi(argv[1]);
+    }
+
     int serverFd = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverFd == -1) { perror("Socket failed"); return -1; }
+
     int opt = 1;
     setsockopt(serverFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(8888);
+    addr.sin_port = htons(port);
     addr.sin_addr.s_addr = INADDR_ANY;
     
-    if(bind(serverFd, (sockaddr*)&addr, sizeof(addr)) == -1) { perror("Bind"); return -1; }
-    listen(serverFd, 10);
+    if(bind(serverFd, (sockaddr*)&addr, sizeof(addr)) == -1) {
+        perror("Bind failed");
+        return -1;
+    }
     
-    std::cout << "Server running on 8888..." << std::endl;
+    if (listen(serverFd, 10) == -1) {
+        perror("Listen failed");
+        return -1;
+    }
+    
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << " Server started on port " << port << std::endl;
+    std::cout << " Usage: ./chat_server [port]" << std::endl;
+    std::cout << " Type message here to broadcast system notice." << std::endl;
+    std::cout << "----------------------------------------" << std::endl;
+    
     std::thread(adminConsole).detach();
 
     while (true) {
@@ -243,5 +261,6 @@ int main() {
             std::thread(handleClient, clientFd).detach();
         }
     }
+    close(serverFd);
     return 0;
 }
