@@ -1,8 +1,3 @@
-# Copyright (c) Huawei Technologies Co., Ltd. 2023-2023. All rights reserved.
-# Description: CMake构建脚本
-# Author: User
-# Create: 2023-12-01
-
 cmake_minimum_required(VERSION 3.16)
 project(Lab3_Chat)
 
@@ -26,6 +21,7 @@ endif()
 include_directories(common)
 
 # ----------------- Server (纯 C++) -----------------
+# [修改点] 这里只保留 server/main.cpp，去掉了 Server.cpp
 add_executable(chat_server 
     server/main.cpp 
 )

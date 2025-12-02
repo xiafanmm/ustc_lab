@@ -1,9 +1,3 @@
-/*
- * Description: 客户端主窗口头文件，定义UI组件和网络逻辑接口
- * Author: 夏凡
- * Create: 2025-12-02
- */
-
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
@@ -26,34 +20,25 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
 protected:
     void closeEvent(QCloseEvent *event) override;
 
 private slots:
-    void OnConnected();
-    void OnReadyRead();
-    void OnSendClicked();
-    void OnSelectFileClicked();
-    void OnExitClicked();
-    void OnUserListClicked(QListWidgetItem *item);
-    void OnResetChatTarget();
+    void onConnected();
+    void onReadyRead();
+    void onSendClicked();
+    void onSelectFileClicked();
+    void onExitClicked();
+    void onUserListClicked(QListWidgetItem *item); // 点击用户列表
+    void onResetChatTarget(); // 重置为群聊
 
 private:
-    void InitUi();
-    void InitNetwork();
-    void HandleLoginMsg(const QByteArray &body);
-    void HandleChatMsg(const QByteArray &body);
-    void HandlePrivateChatMsg(const QByteArray &body);
-    void HandleUserListMsg(const QByteArray &body);
-    void HandleFileInfoMsg(const QByteArray &body);
-    void HandleFileDataMsg(const QByteArray &body);
-
     QWidget *centralWidget;
     
-    // UI 组件 
+    // UI
     QLineEdit *ipInput;
     QLineEdit *portInput;
     QLineEdit *nameInput;
@@ -64,6 +49,7 @@ private:
     QListWidget *userListWidget;
     QLabel *onlineCountLabel;
 
+    // 私聊状态栏
     QLabel *targetLabel; 
     QPushButton *resetTargetBtn;
 
@@ -72,16 +58,16 @@ private:
     QPushButton *fileBtn;
     QProgressBar *progressBar;
 
-    // 逻辑变量 (小驼峰) 
+    // Logic
     QTcpSocket *socket;
-    QByteArray recvBuffer;
+    QByteArray m_buffer;
     
-    QString currentTargetName;
+    QString m_currentTargetName; // 空字符串=群聊
 
-    QFile *receivingFile;
-    long totalBytesReceived;
-    long fileSizeExpected;
-    bool isReceivingFile;
+    QFile *m_receivingFile;
+    long m_totalBytesReceived;
+    long m_fileSizeExpected;
+    bool m_isReceivingFile;
 };
 
 #endif
