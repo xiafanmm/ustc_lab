@@ -1,11 +1,16 @@
+/*
+ * Description: 客户端程序入口
+ * Author: 夏凡
+ * Create: 2025-12-02
+ */
+
 #include <QApplication>
 #include "MainWindow.h"
 
-int main(int argc, char *argv[]) {
-    QApplication app(argc, argv); // Qt 程序必须有的对象
-
+int main(int argc, char *argv[])
+{
+    QApplication app(argc, argv);
     MainWindow window;
-    window.show(); // 显示窗口
-
-    return app.exec(); // 进入事件循环
+    window.show();
+    return app.exec();
 }

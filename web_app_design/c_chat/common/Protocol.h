@@ -1,7 +1,17 @@
+/*
+ * Description: 定义通信协议、消息类型及包头结构
+ * Author: 夏凡
+ * Create: 2025-12-02
+ */
+
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
 #include <cstdint>
+
+// 默认端口和缓冲区配置
+const int DEFAULT_PORT = 8888;
+const int FILE_CHUNK_SIZE = 4096;
 
 // 消息类型枚举
 enum MsgType {
@@ -17,11 +27,9 @@ enum MsgType {
 
 // 固定包头 (12字节)
 struct MsgHeader {
-    int32_t type;       
-    int32_t bodyLen;    
-    int32_t senderId;   
+    int32_t type;
+    int32_t bodyLen;
+    int32_t senderId;
 };
-
-const int FILE_CHUNK_SIZE = 4096; 
 
 #endif
