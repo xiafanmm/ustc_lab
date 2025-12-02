@@ -1,7 +1,6 @@
-# Copyright (c) Huawei Technologies Co., Ltd. 2023-2023. All rights reserved.
 # Description: CMake构建脚本
-# Author: User
-# Create: 2023-12-01
+# Author: 夏凡
+# Create: 2025-12-02
 
 cmake_minimum_required(VERSION 3.16)
 project(Lab3_Chat)
